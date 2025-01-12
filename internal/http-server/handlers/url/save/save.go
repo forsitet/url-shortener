@@ -2,6 +2,7 @@ package save
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	resp "url-shortener/internal/lib/api/response"
@@ -41,11 +42,19 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 		)
 
 		var req Request
-
+		fmt.Println("Body:", r.PostForm)
 		err := render.DecodeJSON(r.Body, &req)
+		if err != nil {
+			log.Error("failed to decode request body", sl.Err(err))
+
+			render.JSON(w, r, resp.Error("failed to decode request"))
+
+			return
+		}
+
 		log.Info("request body decoded", slog.Any("request", req))
 
-		if err != nil {
+		if err := validator.New().Struct(req); err != nil {
 			validateErr := err.(validator.ValidationErrors)
 
 			log.Error("failed to decode req", sl.Err(err))
